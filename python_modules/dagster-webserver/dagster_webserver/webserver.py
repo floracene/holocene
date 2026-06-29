@@ -202,6 +202,88 @@ class DagsterWebserver(
         with self.request_context(request) as context:
             return await handle_report_asset_observation_request(context, request)
 
+    async def asset_data_preview_endpoint(self, request: Request) -> JSONResponse:
+        """Live, bounded preview of a Unity Catalog table for the asset view.
+
+        Runs a single system-generated ``SELECT * ... LIMIT n`` against the
+        tenant's Databricks SQL Warehouse using credentials already present in
+        the webserver environment. No user-supplied SQL is ever executed.
+        """
+        from starlette.concurrency import run_in_threadpool
+
+        from dagster_webserver.data_preview import PreviewError, fetch_table_preview
+
+        table = request.query_params.get("table")
+        if not table:
+            return JSONResponse(
+                {"error": "Missing required `table` query parameter."}, status_code=400
+            )
+        n = request.query_params.get("n")
+
+        # Cache-bust on the asset's latest materialization so a fresh build shows
+        # fresh data. Best-effort: an unknown/unmaterialized asset just falls
+        # back to the preview module's short TTL.
+        version = None
+        try:
+            from dagster._core.definitions.events import AssetKey
+
+            with self.request_context(request) as context:
+                event = context.instance.get_latest_materialization_event(
+                    AssetKey(table.split("."))
+                )
+                if event is not None:
+                    version = event.timestamp
+        except Exception:
+            version = None
+
+        try:
+            payload = await run_in_threadpool(
+                lambda: fetch_table_preview(table, n, version=version)
+            )
+        except PreviewError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=exc.status_code)
+        except Exception as exc:
+            return JSONResponse({"error": f"Preview failed: {exc}"}, status_code=500)
+
+        return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
+    async def asset_source_endpoint(self, request: Request) -> JSONResponse:
+        """Full source file (+ trigger schedule) for an asset's code reference.
+
+        Reads from the local databricks-transforms bundle checkout; the GitHub
+        blob URL from the asset's ``dagster/code_references`` metadata is mapped
+        to a repo-relative path and validated to stay within the bundle.
+        """
+        from starlette.concurrency import run_in_threadpool
+
+        from dagster_webserver.data_preview import PreviewError, fetch_asset_source
+
+        url = request.query_params.get("url")
+        try:
+            payload = await run_in_threadpool(lambda: fetch_asset_source(url))
+        except PreviewError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=exc.status_code)
+        except Exception as exc:
+            return JSONResponse({"error": f"Source fetch failed: {exc}"}, status_code=500)
+
+        return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
+    async def asset_builds_endpoint(self, request: Request) -> JSONResponse:
+        """Recent Lakeflow pipeline runs (snapshot / update + duration) for an asset."""
+        from starlette.concurrency import run_in_threadpool
+
+        from dagster_webserver.data_preview import PreviewError, fetch_asset_builds
+
+        url = request.query_params.get("url")
+        try:
+            payload = await run_in_threadpool(lambda: fetch_asset_builds(url))
+        except PreviewError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=exc.status_code)
+        except Exception as exc:
+            return JSONResponse({"error": f"Builds fetch failed: {exc}"}, status_code=500)
+
+        return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
     def index_html_endpoint(self, request: Request):
         """Serves root html."""
         index_path = self.relative_path("webapp/build/index.html")
@@ -346,6 +428,21 @@ class DagsterWebserver(
                     "/report_asset_observation/{asset_key:path}",
                     self.report_asset_observation_endpoint,
                     methods=["POST"],
+                ),
+                Route(
+                    "/preview",
+                    self.asset_data_preview_endpoint,
+                    methods=["GET"],
+                ),
+                Route(
+                    "/asset_source",
+                    self.asset_source_endpoint,
+                    methods=["GET"],
+                ),
+                Route(
+                    "/asset_builds",
+                    self.asset_builds_endpoint,
+                    methods=["GET"],
                 ),
                 Route("/{path:path}", self.index_html_endpoint),
                 Route("/", self.index_html_endpoint),

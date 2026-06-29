@@ -7,6 +7,7 @@ import {Link, Redirect, useLocation, useRouteMatch} from 'react-router-dom';
 import {useSetRecoilState} from 'recoil';
 
 import {ASSET_NODE_CONFIG_FRAGMENT} from './AssetConfig';
+import {AssetDataPreview} from './AssetDataPreview';
 import {AssetEvents} from './AssetEvents';
 import {AssetFeatureContext} from './AssetFeatureContext';
 import {AssetHealthSummary} from './AssetHealthSummary';
@@ -207,10 +208,16 @@ const AssetViewImpl = ({assetKey, headerBreadcrumbs, writeAssetVisit, currentPat
     );
   };
 
+  const renderDataPreviewTab = () => {
+    return <AssetDataPreview assetKey={assetKey} assetNode={definition} />;
+  };
+
   const renderContent = () => {
     switch (selectedTab) {
       case 'overview':
         return renderOverviewTab();
+      case 'data-preview':
+        return renderDataPreviewTab();
       case 'lineage':
         return renderLineageTab();
       case 'partitions':
