@@ -40,6 +40,7 @@ export const AssetTabs = (props: Props) => {
 
 export const DEFAULT_ASSET_TAB_ORDER = [
   'overview',
+  'data-preview',
   'partitions',
   'events',
   'checks',
@@ -79,6 +80,11 @@ export const buildAssetTabMap = (input: AssetTabConfigInput) => {
       id: 'overview',
       title: 'Overview',
       to: buildAssetViewParams({view: 'overview'}),
+    } as AssetTabConfig,
+    'data-preview': {
+      id: 'data-preview',
+      title: 'Data preview',
+      to: buildAssetViewParams({view: 'data-preview'}),
     } as AssetTabConfig,
     partitions: {
       id: 'partitions',

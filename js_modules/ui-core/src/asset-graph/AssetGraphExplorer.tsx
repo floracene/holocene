@@ -97,6 +97,9 @@ type Props = {
   ) => void;
   viewType: AssetGraphViewType;
   setHideEdgesToNodesOutsideQuery?: (hideEdgesToNodesOutsideQuery: boolean) => void;
+  // Suppress the built-in right asset-detail panel (e.g. when the embedding page
+  // provides its own right rail). The graph then fills the full width.
+  hideRightInfoPanel?: boolean;
 };
 
 export const MINIMAL_SCALE = 0.6;
@@ -168,6 +171,7 @@ const AssetGraphExplorerWithData = ({
   viewType,
   loading: dataLoading,
   setHideEdgesToNodesOutsideQuery,
+  hideRightInfoPanel,
 }: WithDataProps) => {
   const findAssetLocation = useFindAssetLocation();
   const [highlighted, setHighlighted] = React.useState<string[] | null>(null);
@@ -877,6 +881,9 @@ const AssetGraphExplorerWithData = ({
         )
       }
       second={(() => {
+        if (hideRightInfoPanel) {
+          return null;
+        }
         if (loading) {
           // If the page is loading but it /will/ show the sidebar when it loads,
           // go ahead and place an empty div so that the drawer doesn't animate out

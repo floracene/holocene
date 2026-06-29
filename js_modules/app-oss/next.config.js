@@ -76,6 +76,24 @@ module.exports = (phase) => {
               destination: `${process.env.NEXT_PUBLIC_BACKEND_ORIGIN}/graphql`,
             },
             {
+              source: '/preview',
+              destination: `${
+                process.env.NEXT_PUBLIC_PREVIEW_ORIGIN || process.env.NEXT_PUBLIC_BACKEND_ORIGIN
+              }/preview`,
+            },
+            {
+              source: '/asset_source',
+              destination: `${
+                process.env.NEXT_PUBLIC_PREVIEW_ORIGIN || process.env.NEXT_PUBLIC_BACKEND_ORIGIN
+              }/asset_source`,
+            },
+            {
+              source: '/asset_builds',
+              destination: `${
+                process.env.NEXT_PUBLIC_PREVIEW_ORIGIN || process.env.NEXT_PUBLIC_BACKEND_ORIGIN
+              }/asset_builds`,
+            },
+            {
               source: '/:path*',
               destination: '/',
             },
