@@ -22,9 +22,12 @@ FROM node:20-bookworm AS ui
 ENV NODE_OPTIONS=--max-old-space-size=6144
 WORKDIR /src
 COPY . .
+# NOTE: not --immutable. master's committed yarn.lock is slightly stale (a leftover
+# @blueprintjs/select peer entry from the upstream "Replace Blueprint Select" change),
+# which yarn 4 reconciles on install; --immutable would hard-fail on that one line.
 RUN corepack enable \
     && cd js_modules \
-    && yarn install --immutable \
+    && yarn install --no-immutable \
     && yarn workspace @dagster-io/app-oss build
 
 # ---------------------------------------------------------------------------
